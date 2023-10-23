@@ -3,8 +3,18 @@ import socket
 import json
 import requests
 import html
+import discord_webhook
+from discord_webhook import DiscordWebhook, DiscordEmbed
+from dotenv import load_dotenv
+import os
 
-# Function to resolve domain to IP
+# Load environment variables from the .env file
+load_dotenv()
+
+# Retrieve the Discord webhook URL from the environment variables
+discord_webhook_url = os.getenv("DISCORD_WEBHOOK_URL")
+
+# Function to resolve a domain to an IP address
 def resolve_domain(domain):
     try:
         ip = socket.gethostbyname(domain)
@@ -12,9 +22,10 @@ def resolve_domain(domain):
     except socket.gaierror:
         return None
 
-# Function to fetch server details
+# Function to fetch server details from a Minecraft server
 def fetch_server_details(ip, port):
     try:
+        # Make a request to the mcsrvstat.us API to get server details
         response = requests.get(f"https://api.mcsrvstat.us/2/{ip}:{port}")
         data = json.loads(response.text)
         return data
@@ -23,6 +34,7 @@ def fetch_server_details(ip, port):
 
 # Function to parse Minecraft color codes and replace HTML entities
 def parse_color_codes(text):
+    # Minecraft color code to HTML color name mapping
     color_map = {
         '0': 'black',
         '1': 'dark blue',
@@ -60,8 +72,23 @@ def parse_color_codes(text):
             parsed_text += f'§{component}'
     return parsed_text
 
+# Function to send a message to the Discord webhook as an embed
+def send_motd_to_discord(message, ip, port):
+    webhook = DiscordWebhook(url=discord_webhook_url)
+    embed = DiscordEmbed(title=f"Server: {ip}:{port}", description=message, color=242424)
+    embed.set_footer(text="Minecraft Server MOTD")
+    
+    webhook.add_embed(embed)
+    response = webhook.execute()
+
+    if response.status_code == 204:
+        print("Message sent to Discord successfully")
+    else:
+        print(f"Failed to send message to Discord. Status code: {response.status_code}")
+
 # Function to update the MOTD label
 def update_motd_label():
+    # Get server IP and port from input fields
     server_ip = ip_entry.get()
     port = port_entry.get()
 
@@ -80,6 +107,9 @@ def update_motd_label():
             formatted_motd = parse_color_codes(motd)
             motd_text.delete(1.0, tk.END)  # Clear the text widget
             motd_text.insert(tk.END, formatted_motd)
+            
+            # Send the MOTD to Discord as an embed
+            send_motd_to_discord(formatted_motd, ip, port)
         else:
             motd_text.delete(1.0, tk.END)  # Clear the text widget
             motd_text.insert(tk.END, "Server not found")
