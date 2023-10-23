@@ -53,7 +53,7 @@ def parse_color_codes(text):
         'e': 'yellow',
         'f': 'white',
     }
-    
+
     # If MOTD is a list, join its elements into a single string
     if isinstance(text, list):
         text = ' '.join(text)
@@ -72,11 +72,17 @@ def parse_color_codes(text):
             parsed_text += f'§{component}'
     return parsed_text
 
-# Function to send a message to the Discord webhook as an embed
-def send_motd_to_discord(message, ip, port):
+# Function to send a message to the Discord webhook as an embed with Minecraft-style formatting
+def send_motd_to_discord(message, ip, port, players_online):
     webhook = DiscordWebhook(url=discord_webhook_url)
-    embed = DiscordEmbed(title=f"Server: {ip}:{port}", description=message, color=242424)
+    embed = DiscordEmbed(title=f"Server: {ip}:{port}", color=242424)
     embed.set_footer(text="Minecraft Server MOTD")
+    
+    # Use monospaced font for Minecraft-style formatting
+    embed.add_embed_field(name="MOTD", value=f"```fix\n{message}```")
+    
+    # Add the number of players online
+    embed.add_embed_field(name="Players Online", value=str(players_online))
     
     webhook.add_embed(embed)
     response = webhook.execute()
@@ -105,11 +111,12 @@ def update_motd_label():
         if server_details:
             motd = server_details.get("motd", {}).get("clean", "N/A")  # Get the "clean" MOTD
             formatted_motd = parse_color_codes(motd)
+            players_online = server_details.get("players", {}).get("online", "N/A")
             motd_text.delete(1.0, tk.END)  # Clear the text widget
             motd_text.insert(tk.END, formatted_motd)
-            
-            # Send the MOTD to Discord as an embed
-            send_motd_to_discord(formatted_motd, ip, port)
+
+            # Send the MOTD to Discord as an embed with Minecraft-style formatting
+            send_motd_to_discord(formatted_motd, ip, port, players_online)
         else:
             motd_text.delete(1.0, tk.END)  # Clear the text widget
             motd_text.insert(tk.END, "Server not found")
